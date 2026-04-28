@@ -1,0 +1,35 @@
+{
+  "SiteName": "ScrumPoker",
+  "InstallationPath": "D:\\wwwSites\\ScrumPoker\\site",
+  "DefaultBindings": [
+    {
+      "Protocol": "http",
+      "Information": "*:80:scrum-poker.example.local"
+    }
+  ],
+  "ApplicationPool": {
+    "Name": "ScrumPoker",
+    "User": "domain\\service-user",
+    "Password": "replace-me",
+    "CLR": "No Managed Code",
+    "PrivateMemoryLimitKB": 512000
+  },
+  "Application": [
+    {
+      "Name": "apiapp",
+      "Path": "D:\\wwwSites\\ScrumPoker\\site\\apiapp",
+      "ApplicationPool": {
+        "Name": "ScrumPoker.Api",
+        "User": "domain\\service-user",
+        "Password": "replace-me",
+        "CLR": "No Managed Code",
+        "PrivateMemoryLimitKB": 512000
+      }
+    }
+  ],
+  "Server": [
+    {
+      "Ip": "127.0.0.1"
+    }
+  ]
+}

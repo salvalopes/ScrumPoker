@@ -1,0 +1,30 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ScrumPoker.Api", "backend\ScrumPoker.Api.csproj", "{B5CEE1AB-68C5-FCEC-EA61-653FFB609ED2}"
+EndProject
+Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "ScrumPoker.Web", "frontend\ScrumPoker.Web.esproj", "{44FF8A40-F8E5-49E2-8C25-B37D32F644B8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B5CEE1AB-68C5-FCEC-EA61-653FFB609ED2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B5CEE1AB-68C5-FCEC-EA61-653FFB609ED2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B5CEE1AB-68C5-FCEC-EA61-653FFB609ED2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B5CEE1AB-68C5-FCEC-EA61-653FFB609ED2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{44FF8A40-F8E5-49E2-8C25-B37D32F644B8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{44FF8A40-F8E5-49E2-8C25-B37D32F644B8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{44FF8A40-F8E5-49E2-8C25-B37D32F644B8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{44FF8A40-F8E5-49E2-8C25-B37D32F644B8}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {DD2CC8C7-2447-42B8-8F52-4B9C18BFF2DE}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Default" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+    <Environment>local</Environment>
+    <Configuration>Release</Configuration>
+    <AppVersion>0.0.0</AppVersion>
+    <SourceDirectory>$(MSBuildProjectDirectory)\..</SourceDirectory>
+    <FrontendDirectory>$(SourceDirectory)\frontend</FrontendDirectory>
+    <BackendProject>$(SourceDirectory)\backend\ScrumPoker.Api.csproj</BackendProject>
+    <ArtifactsDirectory>$(SourceDirectory)\artifacts\Site\$(Environment)</ArtifactsDirectory>
+    <FrontendBuildDirectory>$(ArtifactsDirectory)\frontend-dist</FrontendBuildDirectory>
+    <BackendBuildDirectory>$(ArtifactsDirectory)\backend-publish</BackendBuildDirectory>
+    <PackageDirectory>$(ArtifactsDirectory)\package</PackageDirectory>
+    <ApiApplicationName Condition="'$(ApiApplicationName)' == ''">apiapp</ApiApplicationName>
+    <ApiApplicationDirectory>$(PackageDirectory)\$(ApiApplicationName)</ApiApplicationDirectory>
+    <FrontendEnvironmentFile Condition="'$(FrontendEnvironmentFile)' == ''">$(MSBuildProjectDirectory)\frontend.env.production.same-site.example</FrontendEnvironmentFile>
+    <BackendAllowedOrigins Condition="'$(BackendAllowedOrigins)' == ''"></BackendAllowedOrigins>
+    <IisDefinitionFile Condition="'$(IisDefinitionFile)' == ''">$(MSBuildProjectDirectory)\IIS\$(Environment).json</IisDefinitionFile>
+  </PropertyGroup>
+
+  <Import Condition="exists('$(Environment)')"
+          Project="$(Environment)" />
+  <Import Condition="exists('$(MSBuildProjectDirectory)\$(Environment)')"
+          Project="$(MSBuildProjectDirectory)\$(Environment)" />
+  <Import Condition="exists('$(MSBuildProjectDirectory)\Config\$(Environment)')"
+          Project="$(MSBuildProjectDirectory)\Config\$(Environment)" />
+  <Import Condition="exists('$(MSBuildProjectDirectory)\Config\$(Environment).properties')"
+          Project="$(MSBuildProjectDirectory)\Config\$(Environment).properties" />
+  <Import Condition="exists('$(MSBuildProjectDirectory)\Config\build.properties')"
+          Project="$(MSBuildProjectDirectory)\Config\build.properties" />
+
+  <Target Name="Default" DependsOnTargets="PublishHost" />
+
+  <Target Name="PublishHost"
+          DependsOnTargets="CleanArtifacts;PublishFrontend;PublishBackend;StagePackage;GenerateBackendAppSettings;CopyIisDefinition" />
+
+  <Target Name="CleanArtifacts">
+    <RemoveDir Directories="$(ArtifactsDirectory)" Condition="Exists('$(ArtifactsDirectory)')" />
+    <MakeDir Directories="$(ArtifactsDirectory)" />
+  </Target>
+
+  <Target Name="PublishFrontend">
+    <Message Text="Publishing frontend from $(FrontendDirectory)" Importance="high" />
+    <Copy SourceFiles="$(FrontendEnvironmentFile)"
+          DestinationFiles="$(FrontendDirectory)\.env.production" />
+    <Exec WorkingDirectory="$(FrontendDirectory)" Command="npm install" />
+    <Exec WorkingDirectory="$(FrontendDirectory)" Command="npm run build" />
+    <RemoveDir Directories="$(FrontendBuildDirectory)" Condition="Exists('$(FrontendBuildDirectory)')" />
+    <ItemGroup>
+      <FrontendDistFiles Include="$(FrontendDirectory)\dist\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(FrontendDistFiles)"
+          DestinationFiles="@(FrontendDistFiles->'$(FrontendBuildDirectory)\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Delete Files="$(FrontendDirectory)\.env.production" />
+  </Target>
+
+  <Target Name="PublishBackend">
+    <Message Text="Publishing backend from $(BackendProject)" Importance="high" />
+    <Exec Command='dotnet publish "$(BackendProject)" -c $(Configuration) -o "$(BackendBuildDirectory)"' />
+  </Target>
+
+  <Target Name="StagePackage">
+    <Message Text="Staging IIS package into $(PackageDirectory)" Importance="high" />
+    <MakeDir Directories="$(PackageDirectory)" />
+    <MakeDir Directories="$(ApiApplicationDirectory)" />
+    <ItemGroup>
+      <StagedFrontendFiles Include="$(FrontendBuildDirectory)\**\*" />
+      <StagedBackendFiles Include="$(BackendBuildDirectory)\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(StagedFrontendFiles)"
+          DestinationFiles="@(StagedFrontendFiles->'$(PackageDirectory)\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(StagedBackendFiles)"
+          DestinationFiles="@(StagedBackendFiles->'$(ApiApplicationDirectory)\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="GenerateBackendAppSettings">
+    <PropertyGroup>
+      <GeneratedAppSettingsFile>$(ApiApplicationDirectory)\appsettings.Production.json</GeneratedAppSettingsFile>
+      <CorsLine Condition="'$(BackendAllowedOrigins)' == ''">    "AllowedOrigins": []</CorsLine>
+      <CorsLine Condition="'$(BackendAllowedOrigins)' != ''">    "AllowedOrigins": [$(BackendAllowedOrigins)]</CorsLine>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <GeneratedAppSettingsLines Include="{" />
+      <GeneratedAppSettingsLines Include='  "Cors": {' />
+      <GeneratedAppSettingsLines Include='$(CorsLine)' />
+      <GeneratedAppSettingsLines Include='  },' />
+      <GeneratedAppSettingsLines Include='  "Logging": {' />
+      <GeneratedAppSettingsLines Include='    "LogLevel": {' />
+      <GeneratedAppSettingsLines Include='      "Default": "Information",' />
+      <GeneratedAppSettingsLines Include='      "Microsoft.AspNetCore": "Warning"' />
+      <GeneratedAppSettingsLines Include='    }' />
+      <GeneratedAppSettingsLines Include='  },' />
+      <GeneratedAppSettingsLines Include='  "AllowedHosts": "*"' />
+      <GeneratedAppSettingsLines Include='}' />
+    </ItemGroup>
+
+    <WriteLinesToFile File="$(GeneratedAppSettingsFile)"
+                      Lines="@(GeneratedAppSettingsLines)"
+                      Overwrite="true"
+                      Encoding="UTF-8" />
+  </Target>
+
+  <Target Name="CopyIisDefinition">
+    <Copy SourceFiles="$(IisDefinitionFile)"
+          DestinationFiles="$(ArtifactsDirectory)\iis-definition.json"
+          Condition="Exists('$(IisDefinitionFile)')" />
+  </Target>
+
+</Project>
