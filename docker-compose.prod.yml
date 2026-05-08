@@ -1,0 +1,11 @@
+services:
+  api:
+    image: ghcr.io/salvalopes/scrumpoker-api:latest
+    build: !reset null
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Cors__AllowedOrigins__0: ${CORS_ORIGIN}
+
+  frontend:
+    image: ghcr.io/salvalopes/scrumpoker-frontend:latest
+    build: !reset null

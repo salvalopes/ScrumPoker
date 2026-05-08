@@ -6,6 +6,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ScrumPoker.Api", "backend\S
 EndProject
 Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "ScrumPoker.Web", "frontend\ScrumPoker.Web.esproj", "{44FF8A40-F8E5-49E2-8C25-B37D32F644B8}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{57ACAEFF-89B1-4D1C-9652-E669CD10D02F}"
+	ProjectSection(SolutionItems) = preProject
+		compose.yaml = compose.yaml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
