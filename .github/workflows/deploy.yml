@@ -12,6 +12,8 @@ jobs:
       server_path: /home/deploy/scrumpoker
       image_api: ghcr.io/salvalopes/scrumpoker-api
       image_frontend: ghcr.io/salvalopes/scrumpoker-frontend
+      dockerfile_path: ./backend/Dockerfile
+      frontend_context: ./frontend
     secrets:
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       SSH_HOST: ${{ secrets.SSH_HOST }}
