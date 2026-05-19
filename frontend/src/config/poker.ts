@@ -7,6 +7,7 @@ export const pokerHubEvents = {
 export const pokerHubMethods = {
   joinRoom: "JoinRoom",
   vote: "Vote",
+  removeVote: "RemoveVote",
   revealVotes: "RevealVotes",
   resetVotes: "ResetVotes"
 } as const;

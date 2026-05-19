@@ -8,15 +8,14 @@ export function LoginPage() {
 
   const handleSubmit = (displayName: string) => {
     const didSetDisplayName = setDisplayName(displayName);
-
     if (didSetDisplayName) {
       navigate("/room", { replace: true });
     }
   };
 
   return (
-    <main className="screen login-screen">
+    <div className="login-screen">
       <DisplayNameForm onSubmit={handleSubmit} />
-    </main>
+    </div>
   );
 }

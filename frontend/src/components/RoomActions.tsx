@@ -1,38 +1,40 @@
 type RoomActionsProps = {
   canReveal: boolean;
   isBusy: boolean;
+  areVotesRevealed: boolean;
   onReveal: () => void;
   onReset: () => void;
 };
 
-export function RoomActions({
-  canReveal,
-  isBusy,
-  onReveal,
-  onReset
-}: RoomActionsProps) {
+export function RoomActions({ canReveal, isBusy, areVotesRevealed, onReveal, onReset }: RoomActionsProps) {
   return (
-    <section className="panel actions-panel">
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">Room controls</p>
-          <h2>Reveal or start again</h2>
-        </div>
+    <footer className="action-rail">
+      <div className="action-hint">
+        {areVotesRevealed
+          ? <>Press <kbd>R</kbd> to reset</>
+          : <>Pick a card · <kbd>Enter</kbd> to reveal when everyone has voted</>}
       </div>
-
       <div className="actions-row">
-        <button
-          className="primary-button"
-          disabled={!canReveal || isBusy}
-          onClick={onReveal}
-          type="button"
-        >
-          Reveal votes
-        </button>
-        <button className="secondary-button" disabled={isBusy} onClick={onReset} type="button">
-          Reset room
-        </button>
+        {areVotesRevealed ? (
+          <button className="btn primary" onClick={onReset} type="button">
+            Next round
+          </button>
+        ) : (
+          <>
+            <button className="btn" disabled={isBusy} onClick={onReset} type="button">
+              Reset
+            </button>
+            <button
+              className="btn primary"
+              disabled={!canReveal || isBusy}
+              onClick={onReveal}
+              type="button"
+            >
+              Reveal votes
+            </button>
+          </>
+        )}
       </div>
-    </section>
+    </footer>
   );
 }

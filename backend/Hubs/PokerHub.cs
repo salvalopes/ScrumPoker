@@ -16,6 +16,11 @@ public sealed class PokerHub(IPokerRoomService pokerRoomService) : Hub
         return BroadcastRoomStateAsync(() => pokerRoomService.Vote(Context.ConnectionId, vote));
     }
 
+    public Task<HubActionResultDto> RemoveVote()
+    {
+        return BroadcastRoomStateAsync(() => pokerRoomService.RemoveVote(Context.ConnectionId));
+    }
+
     public Task<HubActionResultDto> RevealVotes()
     {
         return BroadcastRoomStateAsync(pokerRoomService.RevealVotes);

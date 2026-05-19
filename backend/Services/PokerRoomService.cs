@@ -79,6 +79,22 @@ public sealed class PokerRoomService : IPokerRoomService
         }
     }
 
+    public RoomStateDto RemoveVote(string connectionId)
+    {
+        lock (_syncRoot)
+        {
+            if (_roomState.AreVotesRevealed)
+            {
+                throw new InvalidOperationException("Voting is disabled after reveal. Reset the room first.");
+            }
+
+            var participant = FindParticipant(connectionId);
+            participant.Vote = null;
+
+            return CreateRoomStateDto();
+        }
+    }
+
     public RoomStateDto RevealVotes()
     {
         lock (_syncRoot)

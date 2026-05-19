@@ -10,6 +10,8 @@ public interface IPokerRoomService
 
     RoomStateDto Vote(string connectionId, int vote);
 
+    RoomStateDto RemoveVote(string connectionId);
+
     RoomStateDto RevealVotes();
 
     RoomStateDto ResetVotes();

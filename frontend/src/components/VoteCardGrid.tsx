@@ -5,33 +5,26 @@ type VoteCardGridProps = {
   selectedVote: number | null;
   disabled: boolean;
   onVote: (value: number) => void;
+  onRemoveVote: () => void;
 };
 
-export function VoteCardGrid({
-  selectedVote,
-  disabled,
-  onVote
-}: VoteCardGridProps) {
+export function VoteCardGrid({ selectedVote, disabled, onVote, onRemoveVote }: VoteCardGridProps) {
+  const mid = (pokerVoteValues.length - 1) / 2;
   return (
-    <section className="panel">
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">Voting deck</p>
-          <h2>Choose an estimate</h2>
-        </div>
-      </div>
-
-      <div className="vote-grid">
-        {pokerVoteValues.map((value) => (
+    <div className="deck-section">
+      <div className="deck">
+        {pokerVoteValues.map((value, i) => (
           <VoteCard
-            disabled={disabled}
-            isSelected={selectedVote === value}
             key={value}
             value={value}
+            index={i - mid}
+            isSelected={selectedVote === value}
+            disabled={disabled}
             onSelect={onVote}
+            onDeselect={onRemoveVote}
           />
         ))}
       </div>
-    </section>
+    </div>
   );
 }

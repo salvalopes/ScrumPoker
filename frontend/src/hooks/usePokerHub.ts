@@ -17,6 +17,7 @@ type UsePokerHubResult = {
   isConnected: boolean;
   error: string | null;
   vote: (value: number) => Promise<void>;
+  removeVote: () => Promise<void>;
   revealVotes: () => Promise<void>;
   resetVotes: () => Promise<void>;
 };
@@ -179,6 +180,13 @@ export function usePokerHub(displayName: string): UsePokerHubResult {
 
       if (didVote) {
         setSelectedVote(value);
+      }
+    },
+    removeVote: async () => {
+      const didRemove = await invoke(pokerHubMethods.removeVote);
+
+      if (didRemove) {
+        setSelectedVote(null);
       }
     },
     revealVotes: async () => {
