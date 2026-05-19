@@ -1,0 +1,19 @@
+name: Deploy ScrumPoker
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    uses: salvalopes/infra/.github/workflows/deploy-reusable.yml@main
+    with:
+      app_name: scrumpoker
+      server_path: /home/deploy/scrumpoker
+      image_api: ghcr.io/salvalopes/scrumpoker-api
+      image_frontend: ghcr.io/salvalopes/scrumpoker-frontend
+    secrets:
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
