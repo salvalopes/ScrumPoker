@@ -61,6 +61,13 @@ export function RoomPage() {
           </span>
           <span className="sep">/</span>
           <span className="you">{displayName}</span>
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={() => { clearDisplayName(); navigate("/", { replace: true }); }}
+          >
+            Leave
+          </button>
         </div>
       </header>
 
