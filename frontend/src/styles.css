@@ -510,6 +510,20 @@ button { cursor: pointer; }
   color: var(--fg-4);
 }
 
+.btn.ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--fg-3);
+  padding: 5px 10px;
+  font-size: 11px;
+}
+
+.btn.ghost:hover:not(:disabled) {
+  background: var(--bg-2);
+  border-color: var(--line-2);
+  color: var(--fg-1);
+}
+
 /* ---- Error panel ---- */
 .error-panel {
   background: var(--bg-1);
