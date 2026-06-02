@@ -27,7 +27,7 @@ type HubActionResult = {
   errorMessage?: string | null;
 };
 
-export function usePokerHub(displayName: string): UsePokerHubResult {
+export function usePokerHub(roomId: string, displayName: string): UsePokerHubResult {
   const normalizedDisplayName = normalizeDisplayName(displayName);
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [selectedVote, setSelectedVote] = useState<number | null>(null);
@@ -88,6 +88,7 @@ export function usePokerHub(displayName: string): UsePokerHubResult {
       try {
         const result = await hubConnection.invoke<HubActionResult>(
           pokerHubMethods.joinRoom,
+          roomId,
           normalizedDisplayName
         );
         setIsConnected(result?.succeeded ?? false);
@@ -108,7 +109,7 @@ export function usePokerHub(displayName: string): UsePokerHubResult {
 
     const initialize = async () => {
       try {
-        const initialRoomState = await fetchRoomState(abortController.signal);
+        const initialRoomState = await fetchRoomState(roomId, abortController.signal);
         if (!isCancelled) {
           setRoomState(initialRoomState);
         }
@@ -116,6 +117,7 @@ export function usePokerHub(displayName: string): UsePokerHubResult {
         await hubConnection.start();
         const result = await hubConnection.invoke<HubActionResult>(
           pokerHubMethods.joinRoom,
+          roomId,
           normalizedDisplayName
         );
 
@@ -145,9 +147,9 @@ export function usePokerHub(displayName: string): UsePokerHubResult {
       setIsConnected(false);
       void hubConnection.stop();
     };
-  }, [normalizedDisplayName]);
+  }, [roomId, normalizedDisplayName]);
 
-  const invoke = async (methodName: string, ...args: number[]) => {
+  const invoke = async (methodName: string, ...args: (string | number)[]) => {
     if (!connection || !isConnected) {
       setError("Not connected to the room.");
       return false;
@@ -155,7 +157,7 @@ export function usePokerHub(displayName: string): UsePokerHubResult {
 
     try {
       setError(null);
-      const result = await connection.invoke<HubActionResult>(methodName, ...args);
+      const result = await connection.invoke<HubActionResult>(methodName, roomId, ...args);
 
       if (!result?.succeeded) {
         setError(result?.errorMessage ?? "The room rejected that action.");
@@ -177,14 +179,12 @@ export function usePokerHub(displayName: string): UsePokerHubResult {
     error,
     vote: async (value) => {
       const didVote = await invoke(pokerHubMethods.vote, value);
-
       if (didVote) {
         setSelectedVote(value);
       }
     },
     removeVote: async () => {
       const didRemove = await invoke(pokerHubMethods.removeVote);
-
       if (didRemove) {
         setSelectedVote(null);
       }
@@ -194,7 +194,6 @@ export function usePokerHub(displayName: string): UsePokerHubResult {
     },
     resetVotes: async () => {
       const didReset = await invoke(pokerHubMethods.resetVotes);
-
       if (didReset) {
         setSelectedVote(null);
       }

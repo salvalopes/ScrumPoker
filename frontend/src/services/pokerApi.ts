@@ -1,8 +1,8 @@
 import { appConfig } from "./appConfig";
 import type { RoomState } from "../types/poker";
 
-export async function fetchRoomState(signal?: AbortSignal): Promise<RoomState> {
-  const response = await fetch(`${appConfig.apiBaseUrl}/api/room/state`, {
+export async function fetchRoomState(roomId: string, signal?: AbortSignal): Promise<RoomState> {
+  const response = await fetch(`${appConfig.apiBaseUrl}/api/room/${roomId}/state`, {
     credentials: "same-origin",
     signal
   });

@@ -4,17 +4,17 @@ namespace backend.Services;
 
 public interface IPokerRoomService
 {
-    RoomStateDto GetRoomState();
+    RoomStateDto GetRoomState(string roomId);
 
-    RoomStateDto JoinRoom(string connectionId, string displayName);
+    RoomStateDto JoinRoom(string roomId, string connectionId, string displayName);
 
-    RoomStateDto Vote(string connectionId, int vote);
+    RoomStateDto Vote(string roomId, string connectionId, int vote);
 
-    RoomStateDto RemoveVote(string connectionId);
+    RoomStateDto RemoveVote(string roomId, string connectionId);
 
-    RoomStateDto RevealVotes();
+    RoomStateDto RevealVotes(string roomId);
 
-    RoomStateDto ResetVotes();
+    RoomStateDto ResetVotes(string roomId);
 
-    RoomStateDto RemoveParticipant(string connectionId);
+    RoomStateDto RemoveParticipant(string roomId, string connectionId);
 }

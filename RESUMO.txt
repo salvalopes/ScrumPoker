@@ -1,0 +1,323 @@
+================================================================================
+  ScrumPoker — Resumo do Projecto e Histórico de Desenvolvimento
+  Última actualização: 2026-06-02
+================================================================================
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 1. VISÃO GERAL
+────────────────────────────────────────────────────────────────────────────────
+
+Ferramenta de Planning Poker em tempo real para equipas de desenvolvimento.
+Permite que uma equipa entre numa sala virtual, vote em story points com cartas
+(sequência Fibonacci: 1, 2, 3, 5, 8, 13, 20, 40, 100), revele os votos em
+simultâneo e discuta as estimativas.
+
+Sem base de dados — todo o estado fica em memória no backend. Suporta uma só
+instância de backend (não escalável horizontalmente). Deploy em poker.salv4.com.
+
+Composta por:
+  - API REST + SignalR em .NET 10 (ScrumPoker.Api)
+  - Frontend React 18 + Vite + TypeScript
+  - Deploy containerizado via Docker + Caddy em poker.salv4.com
+  - CI/CD via GitHub Actions (deploy automático em push para main)
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 2. ESTRUTURA DO REPOSITÓRIO
+────────────────────────────────────────────────────────────────────────────────
+
+ScrumPoker/
+├── backend/
+│   ├── Contracts/
+│   │   ├── RoomStateDto.cs      (Participants[], AreVotesRevealed)
+│   │   ├── ParticipantDto.cs    (DisplayName, HasVoted, Vote?)
+│   │   └── HubActionResultDto.cs (Succeeded, ErrorMessage?)
+│   ├── Controllers/
+│   │   └── RoomController.cs    (GET /api/room/state)
+│   ├── Hubs/
+│   │   └── PokerHub.cs          (métodos SignalR + broadcast)
+│   ├── Models/
+│   │   ├── PokerRoomState.cs    (estado interno mutável)
+│   │   └── PokerParticipant.cs  (ConnectionId, DisplayName, Vote?)
+│   ├── Services/
+│   │   ├── IPokerRoomService.cs
+│   │   └── PokerRoomService.cs  (lógica de negócio, singleton, thread-safe com lock)
+│   ├── Program.cs               (DI, CORS, logging, routing)
+│   ├── appsettings.json         (Cors.AllowedOrigins vazio → AllowAnyOrigin)
+│   ├── appsettings.Development.json (Cors: ["http://localhost:5173"])
+│   └── Dockerfile               (multi-stage: SDK 10 → aspnet:10-alpine)
+│
+├── frontend/
+│   └── src/
+│       ├── pages/
+│       │   ├── LoginPage.tsx    (/ — entrada de nome; guarda cookie)
+│       │   └── RoomPage.tsx     (/room — sala de votação completa)
+│       ├── components/
+│       │   ├── DisplayNameForm.tsx   (input com validação)
+│       │   ├── VoteCardGrid.tsx      (grid 9 cartas Fibonacci)
+│       │   ├── VoteCard.tsx          (carta individual — toggle vote/remove)
+│       │   ├── ParticipantsList.tsx  (mini-cards com flip animation ao revelar)
+│       │   └── RoomActions.tsx       (botões Reveal/Reset + dicas de teclado)
+│       ├── hooks/
+│       │   ├── usePokerHub.ts        (ciclo de vida SignalR + actions)
+│       │   └── useDisplayName.ts     (cookie displayName — leitura/escrita)
+│       ├── services/
+│       │   ├── appConfig.ts          (VITE_API_BASE_URL, VITE_HUB_URL)
+│       │   └── pokerApi.ts           (GET /api/room/state)
+│       ├── config/
+│       │   ├── poker.ts              (constantes de hub e valores de voto)
+│       │   └── displayName.ts        (normalização e validação)
+│       ├── types/
+│       │   └── poker.ts              (Participant, RoomState)
+│       ├── App.tsx                   (router)
+│       └── styles.css                (design tokens e estilos globais)
+│   ├── nginx.conf               (proxy /api e /hubs → api:8080)
+│   ├── vite.config.ts           (dev proxy /api e /hubs → localhost:5078)
+│   └── Dockerfile               (multi-stage: Node 20 → nginx:alpine)
+│
+├── docker-compose.yml           (base — serviços api e frontend)
+├── docker-compose.dev.yml       (override dev: expõe API em 5078)
+├── docker-compose.prod.yml      (override prod: imagens GHCR)
+├── .github/workflows/deploy.yml (CI/CD)
+└── scrum-poker.sln
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 3. BACKEND — ESTADO EM MEMÓRIA
+────────────────────────────────────────────────────────────────────────────────
+
+PokerRoomService (Singleton, thread-safe com lock):
+
+  PokerRoomState
+    ├── List<PokerParticipant> Participants
+    └── bool AreVotesRevealed
+
+  PokerParticipant
+    ├── string ConnectionId   (ID da conexão SignalR)
+    ├── string DisplayName
+    └── int? Vote             (null = não votou ainda)
+
+Não há persistência — ao reiniciar o serviço a sala fica vazia.
+Apenas uma instância API pode correr (estado não partilhado).
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 4. BACKEND — ENDPOINTS E MÉTODOS SIGNALR
+────────────────────────────────────────────────────────────────────────────────
+
+REST:
+  GET   /api/room/state      Público — snapshot do estado (chamado antes de SignalR)
+
+SignalR Hub: /hubs/poker
+
+  Client → Server (métodos invocados):
+    JoinRoom(displayName)    Valida unicidade (case-insensitive); cria/actualiza participante
+    Vote(vote: int)          Valores válidos: [1, 2, 3, 5, 8, 13, 20, 40, 100];
+                             rejeita se AreVotesRevealed == true
+    RemoveVote()             Limpa voto; falha se votos revelados
+    RevealVotes()            AreVotesRevealed = true
+    ResetVotes()             AreVotesRevealed = false; limpa todos os votos
+    (todos devolvem HubActionResultDto { Succeeded, ErrorMessage? })
+
+  Server → Client (broadcast para todos):
+    RoomStateUpdated(RoomStateDto)  Enviado após qualquer mutação
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 5. BACKEND — LÓGICA DE NEGÓCIO
+────────────────────────────────────────────────────────────────────────────────
+
+CreateRoomStateDto() — chamado após cada mutação:
+  - Ordena participantes alfabeticamente (case-insensitive)
+  - ParticipantDto.Vote = null enquanto AreVotesRevealed == false (oculta votos)
+  - ParticipantDto.HasVoted = participant.Vote.HasValue (independente do reveal)
+
+Validações:
+  - DisplayName: trim + colapsa espaços múltiplos; não vazio; único na sala
+  - Voto: whitelist exata [1, 2, 3, 5, 8, 13, 20, 40, 100]
+  - Qualquer utilizador pode fazer Reveal e Reset
+
+Desconexão:
+  - OnDisconnectedAsync remove participante + broadcast
+  - Se última pessoa sai: AreVotesRevealed reset para false
+
+Program.cs — comportamentos:
+  - CORS: Cors:AllowedOrigins vazio → AllowAnyOrigin; preenchido → WithOrigins + AllowCredentials
+  - Logging JSON em produção (Loki-friendly); console legível em dev
+  - Exception handler: POST /error → LogError + { "error": "Something went wrong." }
+  - HTTP logging: Method, Path, StatusCode, Duration por pedido
+  - HTTPS redirect: apenas em Development (Caddy trata TLS em produção)
+  - DI: PokerRoomService registado como Singleton
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 6. FRONTEND — ROUTING E PÁGINAS
+────────────────────────────────────────────────────────────────────────────────
+
+Rota          Página          Acesso
+/             LoginPage       Público — entrada do nome de utilizador
+/room         RoomPage        Requer displayName no cookie; redireciona para / se ausente
+
+LoginPage:
+  - DisplayNameForm com validação (não vazio, max 30 chars)
+  - On submit: escreve cookie displayName + navega para /room
+
+RoomPage:
+  - Topbar: estado da conexão (Online/Connecting/Offline), displayName, botão Leave
+  - Lane label: contador de seats (x de 10), estatísticas (Consensus/Spread após reveal)
+  - ParticipantsList: grid de participantes com mini-cards e flip animation
+  - VoteCardGrid: 9 cartas — click em deseleccionada → vote(); em seleccionada → removeVote()
+  - RoomActions: botões Reveal / Next round + dicas de teclado
+  - Keyboard: Enter = Reveal, R = Reset (após reveal)
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 7. FRONTEND — PADRÕES-CHAVE
+────────────────────────────────────────────────────────────────────────────────
+
+usePokerHub (hooks/usePokerHub.ts):
+  Hook central. Estado: roomState, selectedVote, isConnecting, isConnected, error.
+  Inicialização:
+    1. GET /api/room/state → preenche estado inicial
+    2. Conecta a /hubs/poker com auto-reconnect
+    3. Invoca JoinRoom(displayName)
+    4. Regista listener RoomStateUpdated → actualiza roomState localmente
+  Reconexão: ao reconectar, re-invoca JoinRoom com mesmo displayName.
+  Actions: vote(value), removeVote(), revealVotes(), resetVotes().
+
+useDisplayName (hooks/useDisplayName.ts):
+  Cookie "displayName", 30 dias, SameSite=Lax, Secure em HTTPS.
+  Normaliza sempre (trim + múltiplos espaços → um, max 30 chars).
+
+appConfig (services/appConfig.ts):
+  Lê VITE_API_BASE_URL e VITE_HUB_URL.
+  Em dev e em produção Docker/Nginx ficam vazias — proxy trata.
+  Em dev e em produção ficam sempre vazias — proxy Vite (dev) e Nginx (produção) tratam do routing.
+
+ParticipantsList:
+  Mini-cards com CSS flip animation ao revelar (front: "?" ou número; back: ✓ ou —).
+  Classe .self destaca o próprio utilizador.
+  RevealStat: "Consensus X" (todos iguais) ou "Spread X–Y" + average + count.
+
+VoteCardGrid:
+  Cards disabled quando: conectando, desconectado, ou votos revelados.
+  CSS custom property --i para animação em leque.
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 8. DESIGN SYSTEM
+────────────────────────────────────────────────────────────────────────────────
+
+Paleta dark (tokens em styles.css):
+  Superfícies: --bg-0 #0a0e15 · --bg-1 #0f141d · --bg-2 #161c27 · --bg-3 #1d2532
+  Texto:       --fg-0 #f0f2f7 · --fg-1 #c8cfdb · --fg-2 #8993a6 · --fg-3 #5b6577
+  Acento:      --accent #E8B86C · --accent-soft rgba(232,184,108,0.14)
+  Hairlines:   --line-1..3 rgba(255,255,255, 0.06/0.10/0.16)
+
+Fontes:
+  Sans:  Inter, -apple-system, Segoe UI
+  Serif: Newsreader, Source Serif 4, Georgia
+  Mono:  JetBrains Mono, Berkeley Mono, ui-monospace
+
+Motion:
+  --ease-out: cubic-bezier(0.22,0.61,0.36,1)
+  --dur-1: 160ms · --dur-2: 280ms · --dur-3: 480ms
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 9. DOCKER E DEPLOY
+────────────────────────────────────────────────────────────────────────────────
+
+Dev local:
+  docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+  (API exposta em localhost:5078, frontend em localhost:5173)
+
+  Ou sem Docker:
+    cd backend && dotnet run
+    cd frontend && npm run dev   (proxy automático para API em 5078)
+
+Deploy — fluxo normal (CI/CD):
+  git commit && git push
+  · GitHub Actions (.github/workflows/deploy.yml): dispara em push para main
+    → chama workflow reutilizável salvalopes/infra
+    → build API + frontend (linux/amd64,linux/arm64) com docker buildx
+    → push imagens GHCR (:latest)
+    → SSH ao servidor → docker compose pull && up -d
+  NUNCA fazer docker buildx build nem ssh deploy para deploys normais.
+
+Deploy manual (apenas debugging):
+  # API
+  docker buildx build --platform linux/amd64,linux/arm64 \
+    -f backend/Dockerfile \
+    -t ghcr.io/salvalopes/scrumpoker-api:latest --push .
+
+  # Frontend
+  docker buildx build --platform linux/amd64,linux/arm64 \
+    -f frontend/Dockerfile \
+    -t ghcr.io/salvalopes/scrumpoker-frontend:latest --push ./frontend
+
+  ssh deploy@178.105.35.70
+  cd /home/deploy/scrumpoker
+  docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+  docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+Reverse proxy: Caddy 2 no host → poker.salv4.com → 127.0.0.1:8082
+               (HTTPS automático via Let's Encrypt)
+
+Nginx (frontend/nginx.conf):
+  location /api/  → proxy para api:8080 (resolver 127.0.0.11 obrigatório)
+  location /hubs/ → proxy WebSocket para api:8080 (proxy_http_version 1.1,
+                    Upgrade header, proxy_read_timeout 86400)
+  location /      → SPA fallback (try_files $uri /index.html)
+
+Variáveis de ambiente em produção (.env no servidor):
+  ASPNETCORE_ENVIRONMENT=Production
+  CORS_ORIGIN=https://poker.salv4.com
+  FRONTEND_PORT=127.0.0.1:8082
+
+Imagens GHCR:
+  ghcr.io/salvalopes/scrumpoker-api:latest
+  ghcr.io/salvalopes/scrumpoker-frontend:latest
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 10. DEPENDÊNCIAS PRINCIPAIS
+────────────────────────────────────────────────────────────────────────────────
+
+Backend (.NET 10):
+  - Microsoft.AspNetCore (framework — sem NuGet packages adicionais)
+  - SignalR (incluído no framework)
+
+Frontend:
+  - react: ^18.3.1
+  - react-dom: ^18.3.1
+  - react-router-dom: ^6.30.1
+  - @microsoft/signalr: ^8.0.7
+  - js-cookie: ^3.0.5
+  - typescript: ^5.6.3
+  - vite: ^4.5.5
+  - @vitejs/plugin-react: ^4.2.1
+
+
+────────────────────────────────────────────────────────────────────────────────
+ 12. CONVENÇÕES E DECISÕES TÉCNICAS
+────────────────────────────────────────────────────────────────────────────────
+
+- Sem base de dados — estado 100% em memória; reiniciar perde a sala
+- Uma instância backend apenas — não escalável horizontalmente
+- Votos: Fibonacci poker [1, 2, 3, 5, 8, 13, 20, 40, 100]
+- DisplayName: max 30 chars, unicidade case-insensitive na sala
+- Mensagens de erro em inglês (ferramenta potencialmente internacional)
+- resolver 127.0.0.11 no nginx.conf: necessário para resolver hostname "api"
+  em runtime dentro de Docker (sem isto o Nginx falha ao arrancar se api não
+  estiver disponível no momento do start)
+- CORS env var: Cors__AllowedOrigins__0 (formato .NET com __ para hierarquia de config)
+- Imagens multi-platform: linux/amd64 (servidor Hetzner) + linux/arm64 (Mac M1)
+- VITE_API_BASE_URL / VITE_HUB_URL deixados vazios em produção Docker —
+  o Nginx do frontend faz proxy transparente; VITE_* ficam sempre vazias em produção Docker
+- API container: cap_drop ALL, read_only: true, tmpfs: /tmp (hardening de segurança)
+- Stateless por design: sem sessões, sem JWT, sem base de dados —
+  a "sessão" é a ligação SignalR activa
+
+================================================================================

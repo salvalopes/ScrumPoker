@@ -8,10 +8,18 @@ namespace backend.Controllers;
 [Route("api/room")]
 public sealed class RoomController(IPokerRoomService pokerRoomService) : ControllerBase
 {
-    [HttpGet("state")]
+    [HttpGet("{roomId}/state")]
     [ProducesResponseType<RoomStateDto>(StatusCodes.Status200OK)]
-    public ActionResult<RoomStateDto> GetState()
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public ActionResult<RoomStateDto> GetState(string roomId)
     {
-        return Ok(pokerRoomService.GetRoomState());
+        if (string.IsNullOrEmpty(roomId) ||
+            roomId.Length > 20 ||
+            !roomId.All(c => (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')))
+        {
+            return BadRequest("Invalid room ID.");
+        }
+
+        return Ok(pokerRoomService.GetRoomState(roomId));
     }
 }

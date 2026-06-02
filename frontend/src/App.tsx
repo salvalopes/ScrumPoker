@@ -1,23 +1,29 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { useDisplayName } from "./hooks/useDisplayName";
+import { generateRoomId, useRoomId } from "./hooks/useRoomId";
 import { LoginPage } from "./pages/LoginPage";
 import { RoomPage } from "./pages/RoomPage";
 
-function RedirectIfMissingDisplayName() {
-  const { displayName } = useDisplayName();
-  return displayName ? <RoomPage /> : <Navigate to="/" replace />;
+function RootRedirect() {
+  const { roomId } = useRoomId();
+  const targetId = roomId.length > 0 ? roomId : generateRoomId();
+  return <Navigate to={`/room/${targetId}`} replace />;
 }
 
-function RedirectIfDisplayNameExists() {
+function RoomRoute() {
+  const { roomId } = useParams<{ roomId: string }>();
   const { displayName } = useDisplayName();
-  return displayName ? <Navigate to="/room" replace /> : <LoginPage />;
+
+  if (!roomId) return <Navigate to="/" replace />;
+
+  return displayName ? <RoomPage /> : <LoginPage />;
 }
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<RedirectIfDisplayNameExists />} />
-      <Route path="/room" element={<RedirectIfMissingDisplayName />} />
+      <Route path="/" element={<RootRedirect />} />
+      <Route path="/room/:roomId" element={<RoomRoute />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

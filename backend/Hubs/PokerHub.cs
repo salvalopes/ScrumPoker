@@ -6,44 +6,76 @@ namespace backend.Hubs;
 
 public sealed class PokerHub(IPokerRoomService pokerRoomService) : Hub
 {
-    public Task<HubActionResultDto> JoinRoom(string displayName)
+    public async Task<HubActionResultDto> JoinRoom(string roomId, string displayName)
     {
-        return BroadcastRoomStateAsync(() => pokerRoomService.JoinRoom(Context.ConnectionId, displayName));
+        if (!IsValidRoomId(roomId))
+        {
+            return new HubActionResultDto(false, "Invalid room ID.");
+        }
+
+        Context.Items["roomId"] = roomId;
+        await Groups.AddToGroupAsync(Context.ConnectionId, roomId);
+        return await BroadcastRoomStateAsync(roomId, () => pokerRoomService.JoinRoom(roomId, Context.ConnectionId, displayName));
     }
 
-    public Task<HubActionResultDto> Vote(int vote)
+    public Task<HubActionResultDto> Vote(string roomId, int vote)
     {
-        return BroadcastRoomStateAsync(() => pokerRoomService.Vote(Context.ConnectionId, vote));
+        if (!IsValidRoomId(roomId))
+        {
+            return Task.FromResult(new HubActionResultDto(false, "Invalid room ID."));
+        }
+
+        return BroadcastRoomStateAsync(roomId, () => pokerRoomService.Vote(roomId, Context.ConnectionId, vote));
     }
 
-    public Task<HubActionResultDto> RemoveVote()
+    public Task<HubActionResultDto> RemoveVote(string roomId)
     {
-        return BroadcastRoomStateAsync(() => pokerRoomService.RemoveVote(Context.ConnectionId));
+        if (!IsValidRoomId(roomId))
+        {
+            return Task.FromResult(new HubActionResultDto(false, "Invalid room ID."));
+        }
+
+        return BroadcastRoomStateAsync(roomId, () => pokerRoomService.RemoveVote(roomId, Context.ConnectionId));
     }
 
-    public Task<HubActionResultDto> RevealVotes()
+    public Task<HubActionResultDto> RevealVotes(string roomId)
     {
-        return BroadcastRoomStateAsync(pokerRoomService.RevealVotes);
+        if (!IsValidRoomId(roomId))
+        {
+            return Task.FromResult(new HubActionResultDto(false, "Invalid room ID."));
+        }
+
+        return BroadcastRoomStateAsync(roomId, () => pokerRoomService.RevealVotes(roomId));
     }
 
-    public Task<HubActionResultDto> ResetVotes()
+    public Task<HubActionResultDto> ResetVotes(string roomId)
     {
-        return BroadcastRoomStateAsync(pokerRoomService.ResetVotes);
+        if (!IsValidRoomId(roomId))
+        {
+            return Task.FromResult(new HubActionResultDto(false, "Invalid room ID."));
+        }
+
+        return BroadcastRoomStateAsync(roomId, () => pokerRoomService.ResetVotes(roomId));
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        var roomState = pokerRoomService.RemoveParticipant(Context.ConnectionId);
-        await Clients.All.SendAsync("RoomStateUpdated", roomState);
+        if (Context.Items.TryGetValue("roomId", out var roomIdObj) && roomIdObj is string roomId)
+        {
+            var roomState = pokerRoomService.RemoveParticipant(roomId, Context.ConnectionId);
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomId);
+            await Clients.Group(roomId).SendAsync("RoomStateUpdated", roomState);
+        }
+
         await base.OnDisconnectedAsync(exception);
     }
 
-    private async Task<HubActionResultDto> BroadcastRoomStateAsync(Func<RoomStateDto> updateRoomState)
+    private async Task<HubActionResultDto> BroadcastRoomStateAsync(string roomId, Func<RoomStateDto> updateRoomState)
     {
         try
         {
             var roomState = updateRoomState();
-            await Clients.All.SendAsync("RoomStateUpdated", roomState);
+            await Clients.Group(roomId).SendAsync("RoomStateUpdated", roomState);
             return new HubActionResultDto(true);
         }
         catch (InvalidOperationException exception)
@@ -51,4 +83,9 @@ public sealed class PokerHub(IPokerRoomService pokerRoomService) : Hub
             return new HubActionResultDto(false, exception.Message);
         }
     }
+
+    private static bool IsValidRoomId(string roomId) =>
+        !string.IsNullOrEmpty(roomId) &&
+        roomId.Length <= 20 &&
+        roomId.All(c => (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'));
 }

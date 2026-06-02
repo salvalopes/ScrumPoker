@@ -1,10 +1,11 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { ParticipantsList } from "../components/ParticipantsList";
 import { RoomActions } from "../components/RoomActions";
 import { VoteCardGrid } from "../components/VoteCardGrid";
 import { useDisplayName } from "../hooks/useDisplayName";
 import { usePokerHub } from "../hooks/usePokerHub";
+import { useRoomId } from "../hooks/useRoomId";
 import type { Participant } from "../types/poker";
 
 const MAX_SEATS = 10;
@@ -26,11 +27,50 @@ function RevealStat({ participants }: { participants: Participant[] }) {
   );
 }
 
+function ShareButton() {
+  const [copied, setCopied] = useState(false);
+
+  async function handleShare() {
+    const url = window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "ScrumPoker", url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      try {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  return (
+    <button className="btn ghost" type="button" onClick={() => void handleShare()}>
+      {copied ? "Copied!" : "Share"}
+    </button>
+  );
+}
+
 export function RoomPage() {
   const navigate = useNavigate();
+  const { roomId } = useParams<{ roomId: string }>();
   const { clearDisplayName, displayName } = useDisplayName();
+  const { setRoomId, clearRoomId } = useRoomId();
   const { roomState, selectedVote, isConnecting, isConnected, error, vote, removeVote, revealVotes, resetVotes } =
-    usePokerHub(displayName);
+    usePokerHub(roomId ?? "", displayName);
+
+  // Save the URL's roomId to cookie — link sharing has priority over the stored cookie
+  useEffect(() => {
+    if (roomId) setRoomId(roomId);
+  }, [roomId, setRoomId]);
 
   const areVotesRevealed = Boolean(roomState?.areVotesRevealed);
   const participants = roomState?.participants ?? [];
@@ -51,6 +91,12 @@ export function RoomPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [canReveal, areVotesRevealed, revealVotes, resetVotes]);
 
+  function handleLeave() {
+    clearRoomId();
+    clearDisplayName();
+    navigate("/", { replace: true });
+  }
+
   return (
     <div className="stage">
       <header className="topbar">
@@ -61,10 +107,11 @@ export function RoomPage() {
           </span>
           <span className="sep">/</span>
           <span className="you">{displayName}</span>
+          <ShareButton />
           <button
             className="btn ghost"
             type="button"
-            onClick={() => { clearDisplayName(); navigate("/", { replace: true }); }}
+            onClick={handleLeave}
           >
             Leave
           </button>
