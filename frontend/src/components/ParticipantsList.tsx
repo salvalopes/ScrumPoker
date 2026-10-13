@@ -11,7 +11,7 @@ export function ParticipantsList({participants, areVotesRevealed, displayName}: 
     const cols = Math.min(5, Math.max(1, participants.length));
 
     const sortedParticipants = areVotesRevealed
-        ? participants.sort(p => p.vote ?? 0)
+        ? participants.sort((p1, p2) => (p1.vote ?? 0) - (p2.vote ?? 0))
         : participants.sort((p1, p2) => p1.displayName.localeCompare((p2.displayName)));
 
     return (
