@@ -8,6 +8,6 @@ services:
       Cors__AllowedOrigins__0: ${CORS_ORIGIN}
 
   frontend:
-    image: ghcr.io/salvalopes/scrumpoker-frontend:latest
+    image: ghcr.io/salvalopes/scrumpoker-frontend:${IMAGE_TAG:-latest}
     build: !reset null
     pull_policy: always
